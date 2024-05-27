@@ -117,6 +117,8 @@ To run Monash-Casual-Shift-Check on a virtual server, follow these additional st
    ```bash
    tmux attach -t notify-bot
    ```
+## Result
+<img src="https://github.com/Sl-Sanda-Ru/Monash-Casual-Shift-Check/assets/68476573/99cf3542-7121-45c2-acc7-4dc29f6a0140" width="270" height="720">
 
 
 ## Logging
