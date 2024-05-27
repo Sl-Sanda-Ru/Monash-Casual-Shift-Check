@@ -1,0 +1,6 @@
+schedule
+requests
+selenium
+webdriver-manager
+TgCrypto
+pyrogram
