@@ -31,7 +31,6 @@ nrml_msg = "You Have Done {} Hours, and You Got Future Bookings For {} Hours, Yo
 exceed_msg = "You Have Done {} Hours, and You Got Future Bookings For {} Hours, **Hours Exceeded By {}**"
 
 
-logging.info("Webdriver Created")
 handlerclient = Client(
     "HandlerClient",
     bot_token=getenv("BTTKN"),
