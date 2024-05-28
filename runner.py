@@ -13,6 +13,7 @@ from pyrogram import Client, filters
 from os import getenv
 from dotenv import load_dotenv
 from time import sleep
+from threading import Thread
 import logging
 
 
@@ -29,18 +30,22 @@ options.add_experimental_option("excludeSwitches", ["enable-logging"])
 nrml_msg = "You Have Done {} Hours, and You Got Future Bookings For {} Hours, You Can Do {} More Hours"
 exceed_msg = "You Have Done {} Hours, and You Got Future Bookings For {} Hours, **Hours Exceeded By {}**"
 
-driver = webdriver.Chrome(
-    service=Service(ChromeDriverManager().install()), options=options
-)
+
 logging.info("Webdriver Created")
-bot = Client(
-    "Notify Bot",
+handlerclient = Client(
+    "HandlerClient",
     bot_token=getenv("BTTKN"),
     api_id=getenv("APIID"),
     api_hash=getenv("APIHASH"),
 )
-logging.info("Telegram Bot Client Created")
-bot.start()
+senderclient = Client(
+    "SenderClient",
+    bot_token=getenv("BTTKN"),
+    api_id=getenv("APIID"),
+    api_hash=getenv("APIHASH"),
+)
+senderclient.start()
+logging.info("Telegram Bot Clients Created")
 
 
 def fetch_roster_data():
@@ -95,6 +100,9 @@ def process_roster_data(roster_data):
 
 
 def get_completed_hours():
+    driver = webdriver.Chrome(
+        service=Service(ChromeDriverManager().install()), options=options
+    )
     driver.get(
         "https://cust03-prd01-ath01.prd.mykronos.com/authn/XUI/?realm=monashhealth_prd_01&service=1850CustomerIDPChain&goto=https%3A%2F%2Fmonashhealth-sso.prd.mykronos.com%3A443%2F"
     )
@@ -122,10 +130,12 @@ def get_completed_hours():
         )
         .text
     )
+    driver.quit()
+    logging.info(f"get_completed_hours: {hours}")
     return float(hours)
 
 
-def sender():
+def generate_report():
     rosterdata = process_roster_data(fetch_roster_data())
     while True:
         try:
@@ -140,17 +150,34 @@ def sender():
         msg = exceed_msg.format(donehours, rosterdata[1], total - 48)
     else:
         msg = nrml_msg.format(donehours, rosterdata[1], 48 - total)
-    report = f"{msg}\nHere's Your Schedule:\n" + "\n".join(rosterdata[0])
-    bot.send_message(chat_id=7104372073, text=report)
+    return f"{msg}\nHere's Your Schedule:\n" + "\n".join(rosterdata[0])
+
+
+def sender():
+    report = generate_report()
+    senderclient.send_message(chat_id=getenv("CHTID"), text=report)
 
 
 schedule.every().day.at(getenv("TIME")).do(sender)
-try:
+
+
+def run_scheduler():
     while True:
         schedule.run_pending()
         sleep(58)
+
+
+@handlerclient.on_message(filters.command("check"))
+def check(client, message):
+    report = generate_report()
+    client.send_message(chat_id=getenv("CHTID"), text=report)
+
+
+scheduler_thread = Thread(target=run_scheduler)
+scheduler_thread.start()
+try:
+    handlerclient.run()
 except KeyboardInterrupt:
     logging.info("Script terminated by user")
 finally:
-    driver.quit()
-    bot.stop()
+    senderclient.stop()
