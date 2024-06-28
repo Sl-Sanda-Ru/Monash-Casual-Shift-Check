@@ -92,7 +92,7 @@ def process_roster_data(roster_data, fortnight_end):
             and shift_date > current_date
             or (
                 shift_date == current_date
-                and not datetime.strptime(shift_end, "%H:%M").time() < current_time
+                and not datetime.strptime(shift_end, "%H:%M").time() > current_time
             )
         ):
             shifts[0].append(f"{shift_date} {location} {shift_start} {shift_end}")
@@ -144,7 +144,7 @@ def get_completed_hours():
     ).text
     fortnight_end = (
         datetime.strptime(fortnight_end, "%a %d/%m").replace(year=datetime.now().year)
-        + timedelta(days=14)
+        + timedelta(days=13)
     ).date()
     driver.quit()
     logging.info(f"get_completed_hours: {hours} fortnight end:{fortnight_end}")
