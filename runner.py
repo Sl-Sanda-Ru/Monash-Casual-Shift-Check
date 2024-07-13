@@ -43,6 +43,8 @@ senderclient = Client(
     api_id=getenv("APIID"),
     api_hash=getenv("APIHASH"),
 )
+senderclient.start()
+
 logging.info("Telegram Bot Clients Created")
 
 
@@ -134,7 +136,7 @@ def get_completed_hours():
         WebDriverWait(driver, 15)
         .until(
             EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="13_cumulativetotal"]/span[3]/span/span')
+                (By.XPATH, '//*[@id="16_cumulativetotal"]/span[3]/span/span')
             )
         )
         .text
@@ -198,7 +200,6 @@ scheduler_thread = Thread(target=run_scheduler)
 try:
     scheduler_thread.start()
     handlerclient.run()
-    senderclient.start()
 except KeyboardInterrupt:
     logging.info("Script terminated by user")
     exit()
