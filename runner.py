@@ -94,7 +94,7 @@ def process_roster_data(roster_data, fortnight_end):
             and shift_date > current_date
             or (
                 shift_date == current_date
-                and not datetime.strptime(shift_end, "%H:%M").time() > current_time
+                and datetime.strptime(shift_end, "%H:%M").time() > current_time
             )
         ):
             shifts[0].append(f"{shift_date} {location} {shift_start} {shift_end}")
@@ -135,9 +135,7 @@ def get_completed_hours():
     hours = (
         WebDriverWait(driver, 15)
         .until(
-            EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="16_cumulativetotal"]/span[3]/span/span')
-            )
+            EC.presence_of_element_located((By.XPATH, '//*[@id="13_cumulativetotal"]'))
         )
         .text
     )
