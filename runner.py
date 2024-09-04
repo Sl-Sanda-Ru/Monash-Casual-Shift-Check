@@ -74,11 +74,14 @@ def calculate_shift_hours(shift_start, shift_end):
 def process_roster_data(roster_data, fortnight_end):
     shifts = ([], [])  # shifts within the fortnight, shifts outside fortnight
     total_hours = 0
+    global current_date, current_time
     current_date = datetime.now().date()
     current_time = datetime.now().time()
 
     for shortfall in roster_data.get("roster", {}).get("shortfalls", []):
+        # global shift_date, shift_start, shift_end
         shift_date = datetime.strptime(shortfall["day"], "%Y-%m-%d").date()
+        shift_day = shift_date.strftime('%A')
         shift_start = shortfall["shiftStart"]
         shift_end = shortfall["shiftEnd"]
         location = f'{shortfall["location4"]["description"]} {shortfall["location2"]["description"]}'
@@ -88,19 +91,19 @@ def process_roster_data(roster_data, fortnight_end):
             pass
         else:
             location += f" {assigner}"
-
+        # print(shift_date, shift_start, shift_end, location)
         if (
-            shift_date < fortnight_end
+            shift_date <= fortnight_end
             and shift_date > current_date
             or (
                 shift_date == current_date
                 and datetime.strptime(shift_end, "%H:%M").time() > current_time
             )
         ):
-            shifts[0].append(f"{shift_date} {location} {shift_start} {shift_end}")
+            shifts[0].append(f"{shift_date} **{shift_day}** {location} {shift_start} {shift_end}")
             total_hours += calculate_shift_hours(shift_start, shift_end)
         elif shift_date > fortnight_end:
-            shifts[1].append(f"{shift_date} {location} {shift_start} {shift_end}")
+            shifts[1].append(f"{shift_date} **{shift_day}** {location} {shift_start} {shift_end}")
 
     return shifts, total_hours
 
@@ -139,6 +142,8 @@ def get_completed_hours():
         )
         .text
     )
+    if not hours:
+        hours = 0
     fortnight_end = driver.find_element(
         By.XPATH, '//*[@id="0_date"]/span[3]/span/span'
     ).text
