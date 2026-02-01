@@ -56,8 +56,11 @@ def fetch_roster_data():
         "user-agent": "okhttp/4.10.0",
     }
     try:
+        start_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        end_date = (datetime.now() + timedelta(days=33)).strftime("%Y-%m-%d")
         response = requests.get(
-            "https://monash.shiftmatch.com.au/cascom/json.my.roster.do", headers=headers
+            f"https://monash.shiftmatch.com.au/shiftmatch/rest/api/1/provider/41/user/378157/roster?startDate={start_date}&endDate={end_date}",
+            headers=headers,
         )
         response.raise_for_status()
     except Exception:
@@ -69,43 +72,6 @@ def calculate_shift_hours(shift_start, shift_end):
     start_time = datetime.strptime(shift_start, "%H:%M")
     end_time = datetime.strptime(shift_end, "%H:%M")
     return (end_time - start_time).total_seconds() / 3600  # to get in hours
-
-
-def process_roster_data(roster_data, fortnight_end):
-    shifts = ([], [])  # shifts within the fortnight, shifts outside fortnight
-    total_hours = 0
-    global current_date, current_time
-    current_date = datetime.now().date()
-    current_time = datetime.now().time()
-
-    for shortfall in roster_data.get("roster", {}).get("shortfalls", []):
-        # global shift_date, shift_start, shift_end
-        shift_date = datetime.strptime(shortfall["day"], "%Y-%m-%d").date()
-        shift_day = shift_date.strftime('%A')
-        shift_start = shortfall["shiftStart"]
-        shift_end = shortfall["shiftEnd"]
-        location = f'{shortfall["location4"]["description"]} {shortfall["location2"]["description"]}'
-        try:
-            assigner = shortfall["notes"][0]["text"]
-        except:
-            pass
-        else:
-            location += f" {assigner}"
-        # print(shift_date, shift_start, shift_end, location)
-        if (
-            shift_date <= fortnight_end
-            and shift_date > current_date
-            or (
-                shift_date == current_date
-                and datetime.strptime(shift_end, "%H:%M").time() > current_time
-            )
-        ):
-            shifts[0].append(f"{shift_date} **{shift_day}** {location} {shift_start} {shift_end}")
-            total_hours += calculate_shift_hours(shift_start, shift_end)
-        elif shift_date > fortnight_end:
-            shifts[1].append(f"{shift_date} **{shift_day}** {location} {shift_start} {shift_end}")
-
-    return shifts, total_hours
 
 
 def get_completed_hours():
@@ -138,14 +104,14 @@ def get_completed_hours():
     hours = (
         WebDriverWait(driver, 15)
         .until(
-            EC.presence_of_element_located((By.XPATH, '//*[@id="13_cumulativetotal"]'))
+            EC.presence_of_element_located((By.XPATH, '//*[@id="14_cumulativetotal"]'))
         )
         .text
     )
     if not hours:
         hours = 0
     fortnight_end = driver.find_element(
-        By.XPATH, '//*[@id="0_date"]/span[3]/span/span'
+        By.XPATH, '//*[@id="0_date"]/span[2]/span/span'
     ).text
     fortnight_end = (
         datetime.strptime(fortnight_end, "%a %d/%m").replace(year=datetime.now().year)
@@ -154,6 +120,53 @@ def get_completed_hours():
     driver.quit()
     logging.info(f"get_completed_hours: {hours} fortnight end:{fortnight_end}")
     return float(hours), fortnight_end
+
+
+def process_roster_data(roster_data, fortnight_end):
+    shifts = ([], [])  # shifts within the fortnight, shifts outside fortnight
+    total_hours = 0
+    global current_date, current_time
+    current_date = datetime.now().date()
+    current_time = datetime.now().time()
+
+    for date in sorted(roster_data["roster"].keys()):
+        # global shift_date, shift_start, shift_end
+        shift_date = datetime.strptime(
+            roster_data["roster"][date]["confirmedWorkRequests"][0]["day"], "%Y-%m-%d"
+        ).date()
+        shift_day = shift_date.strftime("%A")
+        shift_start = roster_data["roster"][date]["confirmedWorkRequests"][0][
+            "startDateTime"
+        ].split("T")[1]
+        shift_end = roster_data["roster"][date]["confirmedWorkRequests"][0][
+            "endDateTime"
+        ].split("T")[1]
+        location = " ".join(
+            f'{roster_data["roster"][date]["confirmedWorkRequests"][0]["location"]["locationHierarchy"]}'.split(
+                "/"
+            )[
+                ::-1
+            ]
+        )
+        # print(shift_date, shift_start, shift_end, location)
+        if (
+            shift_date <= fortnight_end
+            and shift_date > current_date
+            or (
+                shift_date == current_date
+                and datetime.strptime(shift_end, "%H:%M").time() > current_time
+            )
+        ):
+            shifts[0].append(
+                f"{shift_date} **{shift_day}** {location} {shift_start} {shift_end}"
+            )
+            total_hours += calculate_shift_hours(shift_start, shift_end)
+        elif shift_date > fortnight_end:
+            shifts[1].append(
+                f"{shift_date} **{shift_day}** {location} {shift_start} {shift_end}"
+            )
+
+    return shifts, total_hours
 
 
 def generate_report():
